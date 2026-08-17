@@ -12,15 +12,15 @@ The sideloader finds devices over ADB wireless debugging, so each Android
 device must have it turned on:
 
 1. Enable Developer options: open **Settings → About phone** (on some devices
-   **About tablet** / **About device**) and tap **Build number** seven times.
+  **About tablet** / **About device**) and tap **Build number** seven times.
 2. Go to **Settings → System → Developer options** (on some devices it's
-   directly under Settings).
+  directly under Settings).
 3. Turn on **Wireless debugging**. Confirm the prompt to allow it on the
-   current Wi-Fi network.
+  current Wi-Fi network.
 4. Make sure the device is on the **same Wi-Fi network** as the computer
-   running the sideloader.
+  running the sideloader.
 5. On Android 11+, the first connection from a new computer needs pairing:
-   tap **Wireless debugging → Pair device with pairing code** and enter the
+  tap **Wireless debugging → Pair device with pairing code** and enter the
    shown code/IP/port when the sideloader asks.
 
 On Android 10 and below there is no Wireless debugging toggle — enable
@@ -35,9 +35,11 @@ Windows.
 Prerequisites on the build machine:
 
 - Node 20 (pinned in `.nvmrc`; `build.js` refuses other majors since the
-  build machine's Node is what ships inside the binary)
+build machine's Node is what ships inside the binary)
 - Android platform-tools (`adb`), auto-detected from PATH or the usual SDK
-  spots; override with `ADB_EMBED=/path/to/adb`
+spots; override with `ADB_EMBED=/path/to/adb`
+
+
 
 ### macOS (Apple Silicon)
 
@@ -59,10 +61,4 @@ node test.js; node build.js
 `adb.exe` needs `AdbWinApi.dll` and `AdbWinUsbApi.dll` beside it; `build.js`
 embeds them automatically and warns if they're missing.
 
-Watch the build output: an `adb: embedding ...` line with no `warn:` lines
-means the binary is fully self-contained. Note the result is ad-hoc signed
-only — customer-facing builds need a Developer ID signature + notarisation
-(macOS) to avoid the Gatekeeper block on first launch.
-
-GitHub Actions (`.github/workflows/build.yml`) builds macOS arm64, Linux x64
-and Windows x64 on every push and uploads them as artifacts.
+Watch the build output: an `adb: embedding ...` line with no `warn:` lines means the binary is fully self-contained.
