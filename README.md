@@ -6,6 +6,26 @@ app with Node, `adb` and the UI embedded — customers need nothing installed.
 The APK itself is downloaded (and SHA-256 verified) from
 `https://pisignage.com/api/android/version` at runtime, so builds never go stale.
 
+## How to enable side loading:
+
+The sideloader finds devices over ADB wireless debugging, so each Android
+device must have it turned on:
+
+1. Enable Developer options: open **Settings → About phone** (on some devices
+   **About tablet** / **About device**) and tap **Build number** seven times.
+2. Go to **Settings → System → Developer options** (on some devices it's
+   directly under Settings).
+3. Turn on **Wireless debugging**. Confirm the prompt to allow it on the
+   current Wi-Fi network.
+4. Make sure the device is on the **same Wi-Fi network** as the computer
+   running the sideloader.
+5. On Android 11+, the first connection from a new computer needs pairing:
+   tap **Wireless debugging → Pair device with pairing code** and enter the
+   shown code/IP/port when the sideloader asks.
+
+On Android 10 and below there is no Wireless debugging toggle — enable
+**USB debugging** instead, connect once over USB, and run `adb tcpip 5555`.
+
 ## Building
 
 The build uses Node's SEA, which patches a copy of *this* machine's `node`
