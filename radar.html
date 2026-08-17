@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireless debugging · ADB Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Design: "ADB Radar" 1b — Daylight, technical drawing. Ported from the Claude
+   Design canvas to a standalone page: no React, no dc-runtime, no build. */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #e7e5e4; font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; color: #1c1917; }
+body { padding: 40px 24px 80px; display: flex; justify-content: center; }
+.mono { font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; }
+a { color: #0f766e; text-decoration: none; }
+a:hover { color: #134e4a; text-decoration: underline; }
+@keyframes adbPulse { 0% { transform: scale(1); opacity: .55 } 100% { transform: scale(2.6); opacity: 0 } }
+
+.shell { width: 1280px; max-width: 100%; background: #fbfaf8; border: 1px solid #ddd8d1; border-radius: 14px; overflow: hidden; }
+
+/* header */
+.head { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 28px; border-bottom: 1px solid #eae5de; flex-wrap: wrap; }
+.head h1 { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.head .sub { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8a817a; }
+.head .left, .head .right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.head .right { gap: 16px; }
+.scanning { display: inline-flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #c2410c; }
+/* The keyframe scales to 2.6× and fades — that's an expanding ping ring, so the
+   solid dot stays put and the ring rides on ::after. */
+.beacon { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #ea580c; flex: none; }
+.beacon::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: #ea580c; animation: adbPulse 1.6s ease-out infinite; }
+.paused .beacon { background: #a8a29e; }
+.paused .beacon::after { animation: none; opacity: 0; }
+.paused .scanning { color: #78716c; }
+
+button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid #d6d3d1; background: #fff; color: #44403c; font-size: 13px; font-weight: 600; cursor: pointer; }
+button:hover:not(:disabled) { background: #f5f5f4; }
+button:focus-visible { outline: 2px solid #1c1917; outline-offset: 2px; }
+button:disabled { cursor: default; }
+
+.pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; }
+
+/* alerts */
+.alert { display: flex; gap: 10px; padding: 12px 28px; font-size: 13px; background: #fff7ed; color: #9a3412; border-bottom: 1px solid #fde3cf; }
+.alert code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; background: #ffedd5; padding: 1px 5px; border-radius: 4px; }
+
+/* main */
+.main { display: grid; grid-template-columns: 1fr 440px; gap: 40px; padding: 34px 34px 30px; align-items: center; }
+@media (max-width: 1100px) { .main { grid-template-columns: 1fr; } }
+
+.scope { position: relative; width: 460px; height: 460px; max-width: 100%; margin: 0 auto; border-radius: 50%; background: #fff; border: 1px solid #e0dbd4; overflow: hidden; }
+.ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border: 1px solid #ece7e0; border-radius: 50%; }
+.cross-v { position: absolute; left: 50%; top: 6%; bottom: 6%; width: 1px; background: #f0ece6; }
+.cross-h { position: absolute; top: 50%; left: 6%; right: 6%; height: 1px; background: #f0ece6; }
+.sweep { position: absolute; inset: 0; border-radius: 50%; }
+.beam { position: absolute; left: 50%; top: 50%; width: 50%; height: 2px; transform-origin: 0 50%; }
+.host { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; transform: translate(-50%, -50%); border-radius: 50%; background: #1c1917; }
+.tick { position: absolute; left: calc(50% + 6px); font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #b9b1a8; }
+.blip { position: absolute; width: 0; height: 0; pointer-events: none; }
+.blip .dot { position: absolute; border-radius: 50%; }
+.blip .lbl { position: absolute; left: 50%; transform: translateX(-50%); font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .02em; color: #78716c; white-space: nowrap; }
+
+aside { display: flex; flex-direction: column; gap: 24px; }
+.headline { font-size: 44px; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
+.lede { font-size: 15px; color: #78716c; margin-top: 8px; max-width: 340px; text-wrap: pretty; }
+.facts { display: flex; flex-direction: column; border-top: 1px solid #eae5de; }
+.facts div { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid #eae5de; font-size: 14px; }
+.facts span:first-child { color: #78716c; }
+.facts span:last-child { font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+
+/* table */
+.table { border-top: 1px solid #eae5de; }
+.tr { display: grid; grid-template-columns: 1.4fr 1fr .8fr .9fr 130px; gap: 16px; align-items: center; padding: 14px 34px; border-bottom: 1px solid #f2eee9; }
+.thead { display: grid; grid-template-columns: 1.4fr 1fr .8fr .9fr 130px; gap: 16px; padding: 12px 34px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #a8a29e; border-bottom: 1px solid #eae5de; }
+.tr:hover { background: #f7f5f2; }
+.dev { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.dev .n { font-size: 14.5px; font-weight: 600; }
+.dev .c { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e; }
+.addr { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #57534e; }
+.sig { display: flex; align-items: center; gap: 8px; }
+.bar { width: 56px; height: 4px; border-radius: 2px; background: #ebe7e1; overflow: hidden; flex: none; }
+.bar i { display: block; height: 100%; background: #1c1917; border-radius: 2px; }
+.sig span { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: #78716c; }
+.act { display: flex; justify-content: flex-end; }
+.act button { padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; width: 100%; border-color: #1c1917; background: #1c1917; color: #fafaf9; }
+.act button:hover:not(:disabled) { background: #33302d; }
+.act button.done { border-color: #eae5de; background: transparent; color: #a8a29e; }
+.act button.done:hover { background: transparent; }
+.empty { padding: 34px; text-align: center; color: #a8a29e; font-size: 14px; }
+
+/* pair + footer */
+.pairbar { display: flex; align-items: center; gap: 10px; padding: 0 34px 16px; margin-top: -2px; }
+input { font: inherit; height: 34px; padding: 0 12px; font-size: 13px; border: 1px solid #d6d3d1; border-radius: 8px; background: #fff; color: #1c1917; font-family: 'IBM Plex Mono', monospace; }
+input:focus { outline: 2px solid #1c1917; outline-offset: -1px; }
+.pairbar input { width: 110px; letter-spacing: .18em; text-align: center; }
+.pairbar .hint { font-size: 12.5px; color: #a8a29e; }
+.foot { display: flex; align-items: center; gap: 12px; padding: 16px 34px; border-top: 1px solid #eae5de; flex-wrap: wrap; font-size: 13px; color: #78716c; }
+.foot input { width: 190px; }
+.foot .spacer { flex: 1; }
+.foot .apk { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: #8a817a; }
+pre { margin: 0 34px 24px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; line-height: 1.65; background: #f5f4f1; border: 1px solid #eae5de; border-radius: 8px; padding: 12px 14px; max-height: 220px; overflow: auto; white-space: pre-wrap; color: #57534e; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="shell" id="shell">
+  <div class="head">
+    <div class="left">
+      <h1>Wireless debugging</h1>
+      <span class="sub" id="sub">scanning…</span>
+      <span class="pill" id="mode" hidden></span>
+    </div>
+    <div class="right">
+      <span class="scanning"><span class="beacon"></span><span id="scanLabel">starting</span></span>
+      <button id="toggle">Stop scan</button>
+    </div>
+  </div>
+
+  <div id="alerts"></div>
+
+  <div class="main">
+    <div class="scope" id="scope">
+      <div class="ring" style="width:25%;height:25%"></div>
+      <div class="ring" style="width:50%;height:50%"></div>
+      <div class="ring" style="width:75%;height:75%"></div>
+      <div class="ring" style="width:94%;height:94%"></div>
+      <div class="cross-v"></div>
+      <div class="cross-h"></div>
+      <div class="sweep" id="sweep"></div>
+      <div class="beam" id="beam"></div>
+      <div id="blips"></div>
+      <div class="host"></div>
+      <div class="tick" style="top:37.5%" id="t1"></div>
+      <div class="tick" style="top:25%" id="t2"></div>
+      <div class="tick" style="top:12.5%" id="t3"></div>
+      <div class="tick" style="top:3.5%" id="t4"></div>
+    </div>
+
+    <aside>
+      <div>
+        <div class="headline"><span id="countTotal">0</span> <span id="devWord">devices</span></div>
+        <p class="lede" id="lede">advertising ADB over the network. Radius is round-trip latency — the closer to centre, the faster the link.</p>
+      </div>
+      <div class="facts">
+        <div><span>Connected</span><span id="countConnected">0</span></div>
+        <div><span>Awaiting pair</span><span id="countUnpaired">0</span></div>
+        <div><span>Sweep period</span><span id="sweepLabel">6.0s</span></div>
+        <div><span>Last discovery</span><span id="lastSeen">—</span></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="table">
+    <div class="thead">
+      <div>Device</div><div>Address</div><div>Latency</div><div>State</div><div></div>
+    </div>
+    <div id="rows"></div>
+  </div>
+
+  <div class="foot">
+    <input id="manual" placeholder="192.168.1.42:5555" spellcheck="false">
+    <button id="manualgo">Connect</button>
+    <span class="spacer"></span>
+    <span class="apk" id="apkinfo"></span>
+    <button id="logtoggle">adb output</button>
+  </div>
+  <pre id="log" hidden>nothing yet</pre>
+</main>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+
+/* ---------- radar geometry (unchanged from the design) ---------- */
+const SWEEP_MS = 6000;
+const R_MIN = 0.25, R_MAX = 0.94;
+const RTT_MAX = 250;                       // ms at the outermost ring; Wi-Fi sticks waking from power-save routinely clear 200
+const radiusFor = (rtt) => Math.min(R_MAX, Math.max(R_MIN, R_MIN + (rtt / RTT_MAX) * (R_MAX - R_MIN)));
+const rttAt = (r) => Math.round(((r - R_MIN) / (R_MAX - R_MIN)) * RTT_MAX / 5) * 5;
+const trail = (ang, rgb) => 'conic-gradient(from ' + ang + 'deg, rgba(' + rgb + ',0) 0deg, rgba(' + rgb + ',0.03) 240deg, rgba(' + rgb + ',0.16) 340deg, rgba(' + rgb + ',0.34) 360deg)';
+// Stable angle per device so a blip keeps its bearing between sweeps.
+const angleFor = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; };
+
+$('t1').textContent = rttAt(0.25) + ' ms';
+$('t2').textContent = rttAt(0.50) + ' ms';
+$('t3').textContent = rttAt(0.75) + ' ms';
+$('t4').textContent = rttAt(0.94) + ' ms';
+
+const STATE_META = {
+  connected:  { label: 'connected',   bg: '#ecfdf5', fg: '#047857' },
+  connecting: { label: 'connecting…', bg: '#eff6ff', fg: '#1d4ed8' },
+  installing: { label: 'installing…', bg: '#eff6ff', fg: '#1d4ed8' },
+  installed:  { label: 'installed',   bg: '#ecfdf5', fg: '#047857' },
+  paired:     { label: 'paired',      bg: '#f5f5f4', fg: '#57534e' },
+  unpaired:   { label: 'unpaired',    bg: '#fff7ed', fg: '#c2410c' },
+};
+
+/* ---------- demo fallback: the design's own fixtures ---------- */
+const DEMO = [
+  { key: 'husky',     name: 'Pixel 8 Pro',  codename: 'husky',     os: '14', ip: '192.168.1.42',  port: 5555,  rtt: 8,   state: 'paired' },
+  { key: 'dm3q',      name: 'Galaxy S23',   codename: 'dm3q',      os: '14', ip: '192.168.1.57',  port: 5555,  rtt: 46,  state: 'unpaired' },
+  { key: 'bluejay',   name: 'Pixel 6a',     codename: 'bluejay',   os: '14', ip: '192.168.1.119', port: 5555,  rtt: 27,  state: 'connected' },
+  { key: 'tangorpro', name: 'Pixel Tablet', codename: 'tangorpro', os: '14', ip: '192.168.1.61',  port: 37209, rtt: 71,  state: 'paired' },
+  { key: 'mustang',   name: 'Fire HD 10',   codename: 'mustang',   os: '11', ip: '192.168.1.103', port: 5555,  rtt: 134, state: 'unpaired' },
+  { key: 'salami',    name: 'OnePlus 11',   codename: 'salami',    os: '14', ip: '192.168.1.88',  port: 5555,  rtt: 98,  state: 'paired' },
+];
+
+/* ---------- state ---------- */
+const S = {
+  live: null,          // /api/state payload, or null in demo mode
+  devices: [],
+  codes: {},           // serial -> typed pairing code
+  scanning: true,
+  subnet: '192.168.1.0/24',
+  lastSeen: '—',
+  busy: {},
+};
+
+function log(cmd, out) {
+  const el = $('log');
+  if (el.textContent === 'nothing yet') el.textContent = '';
+  el.textContent += '$ ' + cmd + '\n' + (out || '(no output)') + '\n\n';
+  el.scrollTop = el.scrollHeight;
+}
+const clock = () => new Date().toTimeString().slice(0, 8);
+
+/* ---------- helper transport. Relative URL only: served by sideload.js it
+     resolves to the API; opened as a file:// page the fetch throws and we
+     fall back to demo. No cross-origin surface either way. ---------- */
+async function api(path, body) {
+  const r = await fetch(path, body
+    ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
+    : { cache: 'no-store' });
+  const j = await r.json();
+  if (j.out) log(path.replace('api/', ''), j.out);
+  return j;
+}
+
+function normalise(d) {
+  const serial = d.serial || (d.ip + ':' + d.port);
+  const st = d.state === 'device' ? 'connected'
+    : d.source === 'pairing' || d.state === 'unauthorized' ? 'unpaired'
+    : 'paired';
+  return {
+    key: serial, serial, ip: d.ip, port: d.port, source: d.source,
+    // adb only reports a model once the device is connected, so until then the
+    // host octet is the most identifying thing we honestly have.
+    name: d.model || ('device ' + String(d.ip || '').split('.').pop()),
+    codename: d.source === 'usb' ? 'usb' : d.source === 'pairing' ? 'mdns-pair' : 'tcp:' + d.port,
+    os: d.android || '?',
+    rtt: typeof d.rtt === 'number' ? d.rtt : 0,
+    state: st,
+  };
+}
+
+/* ---------- rendering ---------- */
+function rowHtml(d) {
+  const m = STATE_META[d.state] || STATE_META.paired;
+  const pct = Math.max(6, Math.min(100, 100 - (d.rtt / RTT_MAX) * 100));
+  const busy = S.busy[d.key];
+  const done = d.state === 'installed';
+
+  let label = 'connect', act = 'connect', disabled = '';
+  if (busy) { label = '···'; disabled = 'disabled'; act = ''; }
+  else if (d.state === 'unpaired') { label = 'pair'; act = 'pair'; }
+  else if (d.state === 'connected') { label = 'install'; act = 'install'; }
+  else if (d.state === 'installed') { label = 'launch'; act = 'launch'; }
+
+  return '<div class="tr">'
+    + '<div class="dev"><span class="n">' + esc(d.name) + '</span>'
+    + '<span class="c">' + esc(d.codename) + ' · Android ' + esc(d.os) + '</span></div>'
+    + '<div class="addr">' + esc(d.ip) + ':' + esc(d.port) + '</div>'
+    + '<div class="sig"><div class="bar"><i style="width:' + pct + '%"></i></div>'
+    + '<span>' + (d.rtt ? d.rtt.toFixed(0) + ' ms' : '—') + '</span></div>'
+    + '<div><span class="pill" style="background:' + m.bg + ';color:' + m.fg + '">' + m.label + '</span></div>'
+    + '<div class="act"><button ' + disabled + ' class="' + (done ? '' : '') + '" data-act="' + act + '" data-k="' + esc(d.key) + '">' + label + '</button></div>'
+    + '</div>'
+    + (S.codes[d.key] !== undefined ? '<div class="pairbar">'
+        + '<input maxlength="6" inputmode="numeric" placeholder="000000" data-code="' + esc(d.key) + '" value="' + esc(S.codes[d.key]) + '">'
+        + '<button data-act="pairgo" data-k="' + esc(d.key) + '">pair device</button>'
+        + '<span class="hint">6-digit code shown on the device</span></div>' : '');
+}
+
+let blipRefs = [];
+function render() {
+  const ds = S.devices;
+  $('rows').innerHTML = ds.length ? ds.map(rowHtml).join('')
+    : '<div class="empty">No devices found. Enable wireless debugging on the device, then scan.</div>';
+
+  $('countTotal').textContent = ds.length;
+  $('devWord').textContent = ds.length === 1 ? 'device' : 'devices';
+  $('countConnected').textContent = ds.filter((d) => d.state === 'connected' || d.state === 'installed').length;
+  $('countUnpaired').textContent = ds.filter((d) => d.state === 'unpaired').length;
+  $('lastSeen').textContent = S.lastSeen;
+  $('scanLabel').textContent = (S.scanning ? 'scanning · ' : 'paused · ') + ds.length + ' found';
+  $('sub').textContent = S.subnet + ' · mDNS _adb-tls-connect._tcp';
+  $('toggle').textContent = S.scanning ? 'Stop scan' : 'Start scan';
+  $('shell').classList.toggle('paused', !S.scanning);
+
+  // Blip nodes are rebuilt only when the device set changes; the rAF loop below
+  // mutates their style directly rather than re-rendering every frame.
+  $('blips').innerHTML = ds.map((d) =>
+    '<div class="blip" style="left:0;top:0"><div class="dot"></div><div class="lbl">' + esc(d.name) + '</div></div>').join('');
+  blipRefs = [...$('blips').children].map((el, i) => ({
+    el, dot: el.querySelector('.dot'), lbl: el.querySelector('.lbl'), d: ds[i], below: i % 2 === 1,
+  }));
+}
+
+// Sweep time accumulates only while scanning, so "Stop scan" freezes the beam
+// where it stands instead of spinning on over a stale device list.
+let sweepClock = 0, lastNow = null;
+function frame(now) {
+  if (lastNow !== null && S.scanning) sweepClock += now - lastNow;
+  lastNow = now;
+  const ang = ((sweepClock % SWEEP_MS) / SWEEP_MS) * 360;
+  $('sweep').style.background = trail(ang, '234,88,12');
+  $('beam').style.transform = 'translateY(-50%) rotate(' + (ang - 90) + 'deg)';
+  $('beam').style.background = 'linear-gradient(90deg, rgba(234,88,12,0.75), rgba(234,88,12,0))';
+
+  for (const b of blipRefs) {
+    const bearing = angleFor(b.d.key);
+    const r = radiusFor(b.d.rtt);
+    const rad = (bearing - 90) * Math.PI / 180;
+    b.el.style.left = (50 + r * 47 * Math.cos(rad)) + '%';
+    b.el.style.top = (50 + r * 47 * Math.sin(rad)) + '%';
+
+    const delta = ((ang - bearing) % 360 + 360) % 360;
+    const fresh = Math.pow(1 - delta / 360, 1.7);
+    const op = 0.12 + 0.88 * fresh;
+    const size = 9 + 7 * fresh;
+    const liveNow = b.d.state === 'connected' || b.d.state === 'installed';
+    const c = liveNow ? '#16a34a' : '#ea580c';
+    const s = b.dot.style;
+    s.left = (-size / 2) + 'px'; s.top = (-size / 2) + 'px';
+    s.width = size + 'px'; s.height = size + 'px';
+    s.background = c; s.opacity = op;
+    s.boxShadow = '0 0 ' + (4 + 16 * fresh) + 'px ' + c;
+    b.lbl.style.opacity = Math.max(0.18, op * 0.95);
+    b.lbl.style.top = b.below ? '11px' : 'auto';
+    b.lbl.style.bottom = b.below ? 'auto' : '11px';
+  }
+
+  // One real sweep per revolution, so the animation and the scan agree.
+  const rev = Math.floor(sweepClock / SWEEP_MS);
+  if (S.live && S.scanning && rev !== frame.rev) { frame.rev = rev; doScan(); }
+  requestAnimationFrame(frame);
+}
+frame.rev = -1;
+
+/* ---------- actions ---------- */
+async function busy(key, fn) {
+  S.busy[key] = true; render();
+  try { return await fn(); } finally { delete S.busy[key]; render(); }
+}
+const find = (k) => S.devices.find((d) => d.key === k);
+
+async function doScan() {
+  if (!S.live) return;
+  const r = await api('api/scan');
+  const prev = new Map(S.devices.map((d) => [d.key, d]));
+  S.devices = (r.found || []).map((raw) => {
+    const n = normalise(raw);
+    const old = prev.get(n.key);
+    // Keep post-install state and anything the connect handshake taught us.
+    if (old && (old.state === 'installed' || old.state === 'installing')) n.state = old.state;
+    if (old && old.os !== '?' && n.os === '?') { n.os = old.os; n.name = old.name; }
+    // Raw connect latency swings a lot between sweeps on Wi-Fi; smooth it so a
+    // blip drifts rather than teleporting across the scope every 6 seconds.
+    if (old && old.rtt && n.rtt) n.rtt = old.rtt * 0.6 + n.rtt * 0.4;
+    return n;
+  });
+  S.subnet = (r.subnets || []).map((s) => s + '.0/24').join(', ') || 'no private subnet';
+  S.lastSeen = clock();
+  render();
+}
+
+const ACTIONS = {
+  async connect(k) {
+    const d = find(k);
+    if (!S.live) {                                   // demo: mirror the design's animation
+      d.state = 'connecting'; render();
+      return setTimeout(() => { d.state = 'connected'; S.lastSeen = clock(); render(); }, 1100);
+    }
+    const r = await busy(k, () => api('api/connect', { ip: d.ip, port: d.port }));
+    if (r.ok) { d.state = 'connected'; d.name = r.model || d.name; d.os = r.android || d.os; }
+    else alert('Connect failed:\n\n' + (r.out || 'unknown error'));
+    render();
+  },
+
+  pair(k) { S.codes[k] = ''; render(); },
+
+  async pairgo(k) {
+    const d = find(k);
+    const code = (S.codes[k] || '').trim();
+    if (!/^\d{6}$/.test(code)) return alert('Enter the 6-digit pairing code shown on the device.');
+    if (!S.live) { delete S.codes[k]; d.state = 'paired'; render(); return; }
+    const r = await busy(k, () => api('api/pair', { ip: d.ip, port: d.port, code }));
+    if (!r.ok) return alert('Pairing failed. The port and code change every time that dialog reopens — scan again and retry.');
+    delete S.codes[k];
+    if (r.connect) { await doScan(); const n = find(r.connect.ip + ':' + r.connect.port); if (n) return ACTIONS.connect(n.key); }
+    await doScan();
+  },
+
+  async install(k) {
+    const d = find(k);
+    if (!S.live) {
+      d.state = 'installing'; render();
+      return setTimeout(() => { d.state = 'installed'; render(); }, 1400);
+    }
+    d.state = 'installing'; render();
+    const r = await busy(k, () => api('api/install', { serial: d.serial }));
+    if (r.ok) { d.state = 'installed'; render(); return; }
+    d.state = 'connected'; render();
+    if (r.signature) {
+      const go = confirm('This device already has a copy of the app signed with a different key, '
+        + 'so it cannot be updated in place.\n\nRemoving it first will ERASE the existing app\'s '
+        + 'settings and player configuration on this device.\n\nUninstall and install fresh?');
+      if (!go) return;
+      const u = await busy(k, () => api('api/uninstall', { serial: d.serial }));
+      if (!u.ok) return alert('Uninstall failed:\n\n' + (u.out || 'unknown error'));
+      return ACTIONS.install(k);
+    }
+    if (r.downgrade) return alert('The device already has a newer version installed. Uninstall it manually, or use a newer APK.');
+    alert('Install failed:\n\n' + (r.out || 'unknown error'));
+  },
+
+  async launch(k) {
+    const d = find(k);
+    if (!S.live) return;
+    const r = await busy(k, () => api('api/launch', { serial: d.serial }));
+    if (!r.ok) alert('Launch failed:\n\n' + (r.out || 'unknown error'));
+  },
+};
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]');
+  if (b && ACTIONS[b.dataset.act]) ACTIONS[b.dataset.act](b.dataset.k);
+});
+document.addEventListener('input', (e) => {
+  if (e.target.dataset.code) S.codes[e.target.dataset.code] = e.target.value.replace(/\D/g, '');
+});
+$('toggle').addEventListener('click', () => { S.scanning = !S.scanning; render(); if (S.scanning) doScan(); });
+$('logtoggle').addEventListener('click', () => { $('log').hidden = !$('log').hidden; });
+$('manualgo').addEventListener('click', () => {
+  const m = $('manual').value.trim().match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$/);
+  if (!m) return alert('Enter an address like 192.168.1.42:5555');
+  const key = m[1] + ':' + (m[2] || 5555);
+  if (!find(key)) S.devices.push({ key, serial: key, ip: m[1], port: +(m[2] || 5555), name: 'unidentified', codename: 'manual', os: '?', rtt: 0, state: 'paired' });
+  render();
+  ACTIONS.connect(key);
+});
+$('manual').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('manualgo').click(); });
+
+/* ---------- boot ---------- */
+(async () => {
+  try { S.live = await api('api/state'); } catch { S.live = null; }
+
+  if (S.live) {
+    const a = [];
+    if (!S.live.adb) a.push('<div class="alert"><strong>adb not found.</strong> Install Android platform-tools and restart the helper — <code>brew install android-platform-tools</code>.</div>');
+    if (!S.live.apk) a.push('<div class="alert"><strong>No APK.</strong> ' + esc(S.live.apkError || 'Download failed.') + ' Check the connection and reload.</div>');
+    $('alerts').innerHTML = a.join('');
+    $('apkinfo').textContent = S.live.apk ? S.live.apk.name + ' · ' + (S.live.apk.size / 1048576).toFixed(1) + ' MB' : 'no apk';
+    await doScan();
+  } else {
+    // Standalone file:// page: no sockets available, so show the design's fixtures
+    // and say so plainly rather than passing them off as a real scan.
+    S.devices = DEMO.map((d) => ({ ...d }));
+    S.lastSeen = clock();
+    $('mode').textContent = 'demo data';
+    $('mode').style.background = '#fff7ed';
+    $('mode').style.color = '#c2410c';
+    $('mode').hidden = false;
+    $('lede').innerHTML = 'These are sample devices — a browser opening this file directly has no sockets to scan with. '
+      + 'To see your real devices, double-click <span class="mono">start.command</span> '
+      + '(or run <span class="mono">node sideload.js</span>) and use the page it opens.';
+    $('apkinfo').textContent = 'demo — no helper';
+    render();
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
