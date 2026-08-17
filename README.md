@@ -1,10 +1,6 @@
 # PiSignage Sideloader
 
-Finds Android devices with wireless debugging enabled on the local network and
-installs the PiSignage player APK onto them. Ships as a single double-clickable
-app with Node, `adb` and the UI embedded — customers need nothing installed.
-The APK itself is downloaded (and SHA-256 verified) from
-`https://pisignage.com/api/android/version` at runtime, so builds never go stale.
+Finds Android devices with wireless debugging enabled on the local network and installs the PiSignage player APK onto android device. 
 
 ## How to enable side loading:
 
