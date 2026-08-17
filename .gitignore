@@ -6,3 +6,11 @@ dist/PiSignage Sideloader-mac.app/Contents/_CodeSignature/CodeSignature
 dist/PiSignage Sideloader-mac.app/Contents/_CodeSignature/CodeResources
 dist/PiSignage Sideloader-mac.app/Contents/_CodeSignature/CodeRequirements
 dist/PiSignage Sideloader-mac.app/Contents/_CodeSignature/CodeDirectory
+dist/PiSignage Sideloader.app/Contents/Resources/logo.icns
+dist/PiSignage Sideloader.app/Contents/MacOS/pisignage-sideloader
+dist/PiSignage Sideloader.app/Contents/MacOS/launcher
+dist/PiSignage Sideloader.app/Contents/Info.plist
+dist/PiSignage Sideloader.app/Contents/_CodeSignature/CodeSignature
+dist/PiSignage Sideloader.app/Contents/_CodeSignature/CodeResources
+dist/PiSignage Sideloader.app/Contents/_CodeSignature/CodeRequirements
+dist/PiSignage Sideloader.app/Contents/_CodeSignature/CodeDirectory

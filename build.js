@@ -13,6 +13,14 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { findAdb } = require('./sideload.js');
 
+// The SEA binary *is* this machine's node, so the build's Node version ships
+// to customers — pin the major to keep builds reproducible across machines.
+const WANT = parseInt(fs.readFileSync(path.join(__dirname, '.nvmrc'), 'utf8'), 10);
+if (parseInt(process.versions.node, 10) !== WANT) {
+  console.error(`error: build requires Node ${WANT}.x (see .nvmrc), got ${process.versions.node}`);
+  process.exit(1);
+}
+
 const WIN = process.platform === 'win32';
 const OUT = path.join(__dirname, 'dist', WIN ? 'pisignage-sideloader.exe' : 'pisignage-sideloader');
 const WORK = path.join(__dirname, 'dist', 'build');

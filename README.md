@@ -34,7 +34,8 @@ Windows.
 
 Prerequisites on the build machine:
 
-- Node 18+
+- Node 20 (pinned in `.nvmrc`; `build.js` refuses other majors since the
+  build machine's Node is what ships inside the binary)
 - Android platform-tools (`adb`), auto-detected from PATH or the usual SDK
   spots; override with `ADB_EMBED=/path/to/adb`
 
