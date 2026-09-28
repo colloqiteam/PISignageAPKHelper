@@ -22,6 +22,25 @@ device must have it turned on:
 On Android 10 and below there is no Wireless debugging toggle — enable
 **USB debugging** instead, connect once over USB, and run `adb tcpip 5555`.
 
+## Running on Windows (first launch)
+
+The Windows executable is not code-signed, so the first time you run it
+Microsoft Defender SmartScreen blocks it with a **"Windows protected your PC"**
+dialog. To allow it:
+
+1. Click **More info** in the dialog.
+
+   ![SmartScreen dialog with the More info link](docs/images/smartscreen-more-info.png)
+
+2. Check that the App is `pisignage-sideloader-windows.exe`, then click
+   **Run anyway**.
+
+   ![SmartScreen dialog with the Run anyway button](docs/images/smartscreen-run-anyway.png)
+
+You only need to do this once per copy of the exe. If the dialog shows no
+**More info** link, right-click the exe → **Properties**, tick **Unblock** at
+the bottom of the General tab, click **OK**, and run it again.
+
 ## Building
 
 The build uses Node's SEA, which patches a copy of *this* machine's `node`
