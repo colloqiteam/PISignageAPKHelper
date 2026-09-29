@@ -161,7 +161,10 @@ function adb(args, timeout = 25000) {
   return new Promise((resolve) => {
     if (!ADB) return resolve({ ok: false, out: 'adb not found' });
     execFile(ADB, args, { timeout, maxBuffer: 1 << 22 }, (err, stdout, stderr) => {
-      const out = `${stdout || ''}${stderr || ''}`.trim();
+      let out = `${stdout || ''}${stderr || ''}`.trim();
+      // Killed by our own timeout: say so, or the UI shows a blank failure.
+      if (err && err.killed) out += `${out ? '\n' : ''}timed out after ${timeout / 1000}s`
+        + (args.includes('install') ? ' — the device may be waiting for an on-screen confirmation (e.g. Play Protect).' : '');
       resolve({ ok: !err, out, cmd: `adb ${args.join(' ')}` });
     });
   });

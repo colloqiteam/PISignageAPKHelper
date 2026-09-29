@@ -264,7 +264,8 @@ function rowHtml(d) {
   const done = d.state === 'installed';
 
   let label = 'connect', act = 'connect', disabled = '';
-  if (busy) { label = '···'; disabled = 'disabled'; act = ''; }
+  if (busy && d.installStart) { label = 'installing… ' + elapsed(d); disabled = 'disabled'; act = ''; }
+  else if (busy) { label = '···'; disabled = 'disabled'; act = ''; }
   else if (d.state === 'unpaired') { label = 'pair'; act = 'pair'; }
   else if (d.state === 'connected') { label = 'install'; act = 'install'; }
   else if (d.state === 'installed') { label = 'launch'; act = 'launch'; }
@@ -276,13 +277,30 @@ function rowHtml(d) {
     + '<div class="sig"><div class="bar"><i style="width:' + pct + '%"></i></div>'
     + '<span>' + (d.rtt ? d.rtt.toFixed(0) + ' ms' : '—') + '</span></div>'
     + '<div><span class="pill" style="background:' + m.bg + ';color:' + m.fg + '">' + m.label + '</span></div>'
-    + '<div class="act"><button ' + disabled + ' class="' + (done ? '' : '') + '" data-act="' + act + '" data-k="' + esc(d.key) + '">' + label + '</button></div>'
+    + '<div class="act"><button ' + disabled + ' class="' + (done ? '' : '') + '" data-act="' + act + '" data-k="' + esc(d.key) + '"'
+    + (busy && d.installStart ? ' data-since="' + esc(d.key) + '"' : '') + '>' + label + '</button></div>'
     + '</div>'
+    + (busy && d.installStart ? '<div class="pairbar"><span class="hint" data-slow="' + esc(d.key) + '"'
+        + (slow(d) ? '' : ' hidden') + '>Still going — check the device screen for a Play Protect or "allow install" prompt that needs a tap.</span></div>' : '')
     + (S.codes[d.key] !== undefined ? '<div class="pairbar">'
         + '<input maxlength="6" inputmode="numeric" placeholder="000000" data-code="' + esc(d.key) + '" value="' + esc(S.codes[d.key]) + '">'
         + '<button data-act="pairgo" data-k="' + esc(d.key) + '">pair device</button>'
         + '<span class="hint">6-digit code shown on the device</span></div>' : '');
 }
+
+const elapsed = (d) => Math.floor((Date.now() - d.installStart) / 1000) + 's';
+const slow = (d) => Date.now() - d.installStart > 20000;
+// Tick the install timer in place: a full render() would wipe a half-typed pairing code.
+setInterval(() => {
+  for (const b of document.querySelectorAll('[data-since]')) {
+    const d = find(b.dataset.since);
+    if (d && d.installStart) b.textContent = 'installing… ' + elapsed(d);
+  }
+  for (const h of document.querySelectorAll('[data-slow]')) {
+    const d = find(h.dataset.slow);
+    if (d && d.installStart) h.hidden = !slow(d);
+  }
+}, 1000);
 
 let blipRefs = [];
 function render() {
@@ -365,7 +383,10 @@ async function doScan() {
     const n = normalise(raw);
     const old = prev.get(n.key);
     // Keep post-install state and anything the connect handshake taught us.
-    if (old && (old.state === 'installed' || old.state === 'installing')) n.state = old.state;
+    // 'installing' only survives while the request is actually in flight, so a
+    // failed or lost request can't pin the row there forever.
+    if (old && (old.state === 'installed' || (old.state === 'installing' && S.busy[n.key]))) n.state = old.state;
+    if (old && old.installStart && S.busy[n.key]) n.installStart = old.installStart;
     if (old && old.os !== '?' && n.os === '?') { n.os = old.os; n.name = old.name; }
     // Raw connect latency swings a lot between sweeps on Wi-Fi; smooth it so a
     // blip drifts rather than teleporting across the scope every 6 seconds.
@@ -385,7 +406,9 @@ const ACTIONS = {
       return setTimeout(() => { d.state = 'connected'; S.lastSeen = clock(); render(); }, 1100);
     }
     const r = await busy(k, () => api('api/connect', { ip: d.ip, port: d.port }));
-    if (r.ok) { d.state = 'connected'; d.name = r.model || d.name; d.os = r.android || d.os; }
+    // A sweep may have replaced the device object while we waited; update the live one.
+    const cur = find(k) || d;
+    if (r.ok) { cur.state = 'connected'; cur.name = r.model || cur.name; cur.os = r.android || cur.os; }
     else alert('Connect failed:\n\n' + (r.out || 'unknown error'));
     render();
   },
@@ -410,10 +433,16 @@ const ACTIONS = {
       d.state = 'installing'; render();
       return setTimeout(() => { d.state = 'installed'; render(); }, 1400);
     }
-    d.state = 'installing'; render();
-    const r = await busy(k, () => api('api/install', { serial: d.serial }));
-    if (r.ok) { d.state = 'installed'; render(); return; }
-    d.state = 'connected'; render();
+    d.state = 'installing'; d.installStart = Date.now(); render();
+    let r;
+    try { r = await busy(k, () => api('api/install', { serial: d.serial })); }
+    catch (e) { r = { ok: false, out: 'Lost contact with the helper (' + (e.message || e) + '). Is its window still open?' }; }
+    // A sweep replaces device objects every few seconds, and an install outlasts
+    // several of them — `d` is usually stale by now, so write to the live one.
+    const cur = find(k) || d;
+    delete cur.installStart;
+    if (r.ok) { cur.state = 'installed'; render(); return; }
+    cur.state = 'connected'; render();
     if (r.signature) {
       const go = confirm('This device already has a copy of the app signed with a different key, '
         + 'so it cannot be updated in place.\n\nRemoving it first will ERASE the existing app\'s '

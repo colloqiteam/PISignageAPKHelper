@@ -68,7 +68,7 @@ fs.chmodSync(OUT, 0o755);
 // Windows icon = rewriting node.exe's resources (its icon group id is 1). Must
 // happen BEFORE postject: resource edits rewrite the PE and would corrupt the blob.
 if (WIN) {
-  run('npx.cmd', ['--yes', 'resedit-cli', '--in', OUT, '--out', OUT,
+  run('npx.cmd', ['--yes', 'resedit-cli', '--in', OUT, '--out', OUT, '--ignore-signed',
     '--icon', `1,${path.join(__dirname, 'logo.ico')}`].map((a) => `"${a}"`), { shell: true });
 }
 
