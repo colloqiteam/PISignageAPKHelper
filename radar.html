@@ -375,6 +375,10 @@ async function busy(key, fn) {
 }
 const find = (k) => S.devices.find((d) => d.key === k);
 
+const MISS_LIMIT = 2;
+// USB serials aren't IPs and come out as 0, so they sort to the top.
+const ipNum = (ip) => String(ip).split('.').reduce((n, o) => n * 256 + (+o || 0), 0);
+
 async function doScan() {
   if (!S.live) return;
   const r = await api('api/scan');
@@ -393,6 +397,18 @@ async function doScan() {
     if (old && old.rtt && n.rtt) n.rtt = old.rtt * 0.6 + n.rtt * 0.4;
     return n;
   });
+  // A 500 ms probe on busy Wi-Fi misses a device now and then; keep it for a
+  // couple of sweeps (and for as long as a request to it is in flight) rather
+  // than dropping the row and sliding everything below it up and back.
+  const seen = new Set(S.devices.map((d) => d.key));
+  for (const old of prev.values()) {
+    if (seen.has(old.key)) continue;
+    old.missed = (old.missed || 0) + 1;
+    if (old.missed <= MISS_LIMIT || S.busy[old.key]) S.devices.push(old);
+  }
+  // The server lists devices in the order their probes answered, which swaps
+  // with every sweep; pin the rows to address order instead.
+  S.devices.sort((a, b) => ipNum(a.ip) - ipNum(b.ip) || a.port - b.port || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   S.subnet = (r.subnets || []).map((s) => s + '.0/24').join(', ') || 'no private subnet';
   S.lastSeen = clock();
   render();
@@ -423,6 +439,8 @@ const ACTIONS = {
     const r = await busy(k, () => api('api/pair', { ip: d.ip, port: d.port, code }));
     if (!r.ok) return alert('Pairing failed. The port and code change every time that dialog reopens — scan again and retry.');
     delete S.codes[k];
+    // The pairing port closes once used; don't let the hold-over keep its row around.
+    S.devices = S.devices.filter((x) => x.key !== k);
     if (r.connect) { await doScan(); const n = find(r.connect.ip + ':' + r.connect.port); if (n) return ACTIONS.connect(n.key); }
     await doScan();
   },
