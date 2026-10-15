@@ -19,8 +19,8 @@ device must have it turned on:
   tap **Wireless debugging → Pair device with pairing code** and enter the
    shown code/IP/port when the sideloader asks.
 
-On Android 10 and below there is no Wireless debugging toggle — enable
-**USB debugging** instead, connect once over USB, and run `adb tcpip 5555`.
+> [!WARNING]
+> On **_Android 10 and below_**, the Wireless debugging toggle isn’t available, so this solution won’t work on those versions.
 
 ## Running on Windows (first launch)
 
