@@ -2,6 +2,10 @@
 
 Finds Android devices with wireless debugging enabled on the local network and installs the PiSignage player APK onto android device. 
 
+**Windows device:** [download windows executable](https://github.com/colloqiteam/PISignageAPKHelper/releases/download/v0.10.10/PiSignage.Sideloader-win.exe.zip) <br/>
+**Mac device**: [download mac executable](https://github.com/colloqiteam/PISignageAPKHelper/releases/download/v0.10.10/PiSignage.Sideloader-mac.app.zip)
+
+
 ## How to enable side loading:
 
 The sideloader finds devices over ADB wireless debugging, so each Android
