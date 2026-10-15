@@ -41,6 +41,42 @@ You only need to do this once per copy of the exe. If the dialog shows no
 **More info** link, right-click the exe → **Properties**, tick **Unblock** at
 the bottom of the General tab, click **OK**, and run it again.
 
+## Running on Mac (first launch)
+
+The Mac app is not signed with an Apple Developer ID certificate and has not
+been notarized by Apple. macOS Gatekeeper only opens downloaded apps that are
+both, so on first launch it can't verify where the app came from and refuses
+to open it. The dialog offers no way to open it from there; you have to grant
+an exception in System Settings, which is what steps 2–4 do.
+
+1. Unzip the download and open **PiSignage Sideloader-mac**. macOS shows a
+   **"PiSignage Sideloader-mac" Not Opened** dialog. Click **Done** (not
+   **Move to Bin**).
+
+   ![macOS dialog saying the app was not opened](docs/images/macos-not-opened.png)
+
+2. Open **System Settings → Privacy & Security** (or search for "Privacy &
+   Security" with Spotlight). This is where macOS lists apps Gatekeeper has
+   just blocked.
+
+   ![Spotlight search for Privacy & Security](docs/images/macos-privacy-search.png)
+
+3. Scroll to the **Security** section at the bottom. You'll see
+   **"PiSignage Sideloader-mac" was blocked to protect your Mac.** Click
+   **Open Anyway**. The button only appears for about an hour after the blocked
+   launch; if it's missing, open the app again and come back.
+
+   ![Privacy & Security showing the Open Anyway button](docs/images/macos-open-anyway-settings.png)
+
+4. macOS asks once more to confirm. Click **Open Anyway** and enter your
+   password or use Touch ID if prompted. This records a permanent exception
+   for this copy of the app.
+
+   ![Confirmation dialog with the Open Anyway button](docs/images/macos-open-anyway-confirm.png)
+
+You only need to do this once. After that the app opens normally with a
+double-click. A newly downloaded copy (e.g. an update) needs the same steps.
+
 ## Building
 
 The build uses Node's SEA, which patches a copy of *this* machine's `node`
