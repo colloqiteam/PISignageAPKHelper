@@ -5,6 +5,16 @@ Finds Android devices with wireless debugging enabled on the local network and i
 **Windows device:** [download windows executable](https://github.com/colloqiteam/PISignageAPKHelper/releases/download/v0.10.10/PiSignage.Sideloader-win.exe.zip) <br/>
 **Mac device**: [download mac executable](https://github.com/colloqiteam/PISignageAPKHelper/releases/download/v0.10.10/PiSignage.Sideloader-mac.app.zip)
 
+## Contents
+
+| Section | What it covers |
+|---|---|
+| [How to enable side loading](#how-to-enable-side-loading) | Turn on Wireless debugging on the Android device |
+| [Running on Windows (first launch)](#running-on-windows-first-launch) | Get past the SmartScreen warning |
+| [Running on Mac (first launch)](#running-on-mac-first-launch) | Allow the unsigned app through Gatekeeper |
+| [Using the app](#using-the-app) | Connect to a device, install the APK and launch PiSignage |
+| [Building](#building) | Build the Windows and Mac executables from source |
+
 
 ## How to enable side loading:
 
@@ -80,6 +90,40 @@ an exception in System Settings, which is what steps 2–4 do.
 
 You only need to do this once. After that the app opens normally with a
 double-click. A newly downloaded copy (e.g. an update) needs the same steps.
+
+## Using the app
+
+1. Note down the IP address of the Android device you want to install the APK
+   on.
+2. Open the **PiSignage Sideloader** app. You'll see a screen listing the
+   devices found on your network.
+
+   ![Device list after opening the app](docs/images/usage-device-list.png)
+
+3. In the **Address** column, find the IP address you noted in step 1 and
+   click **connect** on that row.
+
+   ![Address column and connect button highlighted](docs/images/usage-connect.png)
+
+4. The Android device shows an **Allow USB Debugging?** dialog. Click
+   **Allow**.
+
+   ![Allow USB Debugging dialog on the Android device](docs/images/usage-allow-debugging.jpg)
+
+   The state changes to **connected** right away.
+
+   ![Device row showing the connected state](docs/images/usage-connected.png)
+
+5. The **connect** button changes to **install**. Click **install**.
+
+   ![Install button highlighted](docs/images/usage-install.png)
+
+6. Installation takes a few seconds. When it's done, the **install** button
+   changes to **launch**.
+
+   ![Device row showing the installed state and launch button](docs/images/usage-launch.png)
+
+7. Click **launch**. The PiSignage app opens on the Android device.
 
 ## Building
 
